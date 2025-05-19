@@ -6,7 +6,7 @@ const Iconos = () => {
          <ul className="flex justify-center gap-6 pb-10 lg:justify-end">
         <li>
          <Link
-            href="https://www.facebook.com/MarcoTulioScz"
+            href=""
             rel="noreferrer"
             target="_blank"
             className="text-white transition hover:opacity-75"
@@ -25,7 +25,7 @@ const Iconos = () => {
 
         <li>
          <Link
-            href="https://www.instagram.com/marcotulioboliviaoficial/"
+            href=""
             rel="noreferrer"
             target="_blank"
             className="text-white transition hover:opacity-75"
