@@ -5,10 +5,13 @@ import { useEffect } from "react";
 import Lenis from "@studio-freight/lenis";
 import Iconos from "@/components/Iconos";
 import ImageGallery from "@/components/ImageGallery";
-import BannerFormulario from "@/components/BannerFormulario";
+
 import ServiciosAnimados from "@/components/ServiciosAnimados";
 import FramerImagenTexto from "@/components/FramerImagenTexto";
 import InfoContactoProfesional from "@/components/InfoContactoProfesional";
+;
+import TurnosReservaFormV2 from "@/components/TurnosReservaFormV2";
+import TurnoReserva from "@/components/TurnosReserva";
 
 
 export default function Home() {
@@ -25,7 +28,9 @@ export default function Home() {
 
   return (
     <div className="bg-black h-screen">
-      <BannerFormulario />
+      
+      <TurnosReservaFormV2 />
+      <TurnoReserva />
       <ServiciosAnimados />
       <FramerImagenTexto />
       <InfoContactoProfesional />

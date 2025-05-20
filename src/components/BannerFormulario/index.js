@@ -1,10 +1,12 @@
 'use client';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@mui/material";
+import { Button, TextField } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateCalendar, TimeClock } from "@mui/x-date-pickers";
+import { collection, getDocs, addDoc, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 const doctors = [
   { name: "Dr. Juan Pérez" },
@@ -19,22 +21,75 @@ export default function BannerFormulario() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedHour, setSelectedHour] = useState(null);
   const [selectedMinutes, setSelectedMinutes] = useState(null);
+  const [reservedSlots, setReservedSlots] = useState([]);
+
+  // Nuevos campos del formulario
+  const [nombre, setNombre] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [observaciones, setObservaciones] = useState("");
+
+  const loadReservedSlots = async () => {
+    if (!selectedDoctor || !selectedDate) return;
+
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const q = query(
+      collection(db, "turnos"),
+      where("doctor", "==", selectedDoctor.name),
+      where("fecha", ">=", startOfDay.toISOString()),
+      where("fecha", "<", endOfDay.toISOString())
+    );
+
+    const snapshot = await getDocs(q);
+    const takenTimes = snapshot.docs.map(doc => {
+      const date = new Date(doc.data().fecha);
+      return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+    });
+
+    setReservedSlots(takenTimes);
+  };
+
+  useEffect(() => {
+    loadReservedSlots();
+  }, [selectedDoctor, selectedDate]);
+
+  const isSlotTaken = () => {
+    if (!selectedHour || !selectedMinutes) return false;
+    const h = selectedHour.getHours().toString().padStart(2, "0");
+    const m = selectedMinutes.getMinutes().toString().padStart(2, "0");
+    return reservedSlots.includes(`${h}:${m}`);
+  };
 
   const handleSubmit = async () => {
-    if (!selectedDoctor || !selectedDate || selectedHour === null || selectedMinutes === null) return;
+    if (!selectedDoctor || !selectedDate || !selectedHour || !selectedMinutes || !nombre || !telefono) {
+      alert("Por favor completa todos los campos obligatorios.");
+      return;
+    }
 
     const fullDate = new Date(selectedDate);
     fullDate.setHours(selectedHour.getHours());
     fullDate.setMinutes(selectedMinutes.getMinutes());
 
-    const timestamp = fullDate.toISOString();
+    const h = fullDate.getHours().toString().padStart(2, "0");
+    const m = fullDate.getMinutes().toString().padStart(2, "0");
 
-    console.log("Reservado:", {
+    if (reservedSlots.includes(`${h}:${m}`)) {
+      alert("Este horario ya está reservado.");
+      return;
+    }
+
+    await addDoc(collection(db, "turnos"), {
       doctor: selectedDoctor.name,
-      fecha: timestamp,
+      fecha: fullDate.toISOString(),
+      nombre,
+      telefono,
+      observaciones
     });
 
-    // Aquí deberías enviar a Firebase tu objeto con doctor y fecha
+    alert("Turno reservado correctamente.");
 
     // Reset
     setStep(1);
@@ -42,7 +97,12 @@ export default function BannerFormulario() {
     setSelectedDate(null);
     setSelectedHour(null);
     setSelectedMinutes(null);
+    setNombre("");
+    setTelefono("");
+    setObservaciones("");
   };
+
+  const isHourAllowed = (hour) => hour >= 8 && hour <= 19;
 
   return (
     <div className="bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-center py-20 px-4 min-h-screen">
@@ -98,8 +158,14 @@ export default function BannerFormulario() {
                   <h3 className="text-center mb-1 font-medium">Hora</h3>
                   <TimeClock
                     value={selectedHour}
-                    onChange={(newTime) => setSelectedHour(newTime)}
-                    views={['hours']}
+                    onChange={(newTime) => {
+                      if (isHourAllowed(newTime.getHours())) {
+                        setSelectedHour(newTime);
+                      } else {
+                        alert("Solo se permiten turnos entre 8:00 y 20:00.");
+                      }
+                    }}
+                    views={["hours"]}
                     ampm={false}
                   />
                 </div>
@@ -108,16 +174,43 @@ export default function BannerFormulario() {
                   <TimeClock
                     value={selectedMinutes}
                     onChange={(newTime) => setSelectedMinutes(newTime)}
-                    views={['minutes']}
+                    views={["minutes"]}
                     ampm={false}
                   />
                 </div>
               </div>
+              <div className="text-center text-red-500 mt-2">
+                {isSlotTaken() && "Este horario ya está ocupado."}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <TextField
+                  label="Nombre"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  fullWidth
+                />
+                <TextField
+                  label="Teléfono"
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
+                  fullWidth
+                />
+                <TextField
+                  label="Observaciones"
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                  fullWidth
+                  multiline
+                  rows={2}
+                />
+              </div>
+
               <div className="flex justify-center mt-6">
                 <Button
                   variant="contained"
                   color="primary"
-                  disabled={!selectedHour || !selectedMinutes}
+                  disabled={!selectedHour || !selectedMinutes || isSlotTaken()}
                   onClick={handleSubmit}
                 >
                   Confirmar Reserva
